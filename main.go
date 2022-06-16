@@ -14,6 +14,7 @@ type config struct {
 	broker           string
 	clientCnt        int
 	printReceivedMsg bool
+	sleepMs          int
 }
 
 func main() {
@@ -21,6 +22,7 @@ func main() {
 	fs := flag.NewFlagSet("mqtt-benchmark", flag.ExitOnError)
 	fs.StringVar(&c.broker, "b", "", "Broker address, eg: localhost:1883.")
 	fs.IntVar(&c.clientCnt, "c", 1, "Client count.")
+	fs.IntVar(&c.sleepMs, "s", 1, "Sleep ms.")
 	fs.BoolVar(&c.printReceivedMsg, "p", false, "Print received msg.")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		panic(err)
@@ -31,7 +33,7 @@ func main() {
 
 	resCh := make(chan string)
 	for i := 0; i < c.clientCnt; i++ {
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(time.Duration(c.sleepMs) * time.Millisecond)
 		go doClientConn(i, c, resCh)
 	}
 
