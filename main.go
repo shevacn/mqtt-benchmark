@@ -11,8 +11,9 @@ import (
 )
 
 type config struct {
-	broker    string
-	clientCnt int
+	broker           string
+	clientCnt        int
+	printReceivedMsg bool
 }
 
 func main() {
@@ -20,6 +21,7 @@ func main() {
 	fs := flag.NewFlagSet("mqtt-benchmark", flag.ExitOnError)
 	fs.StringVar(&c.broker, "b", "", "Broker address, eg: localhost:1883.")
 	fs.IntVar(&c.clientCnt, "c", 1, "Client count.")
+	fs.BoolVar(&c.printReceivedMsg, "p", false, "Print received msg.")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		panic(err)
 	}
@@ -30,7 +32,7 @@ func main() {
 	resCh := make(chan string)
 	for i := 0; i < c.clientCnt; i++ {
 		time.Sleep(500 * time.Millisecond)
-		go doClientConn(i, c.broker, resCh)
+		go doClientConn(i, c, resCh)
 	}
 
 	for i := 0; i < c.clientCnt; i++ {
@@ -39,9 +41,9 @@ func main() {
 	}
 }
 
-func doClientConn(num int, broker string, resCh chan string) {
+func doClientConn(num int, conf *config, resCh chan string) {
 	c := mqtt.NewClient(&mqtt.ClientOptions{
-		Servers:        []*url.URL{{Host: broker, Scheme: "tcp"}},
+		Servers:        []*url.URL{{Host: conf.broker, Scheme: "tcp"}},
 		ClientID:       fmt.Sprintf("client@%d", num),
 		Username:       "100014",
 		Password:       "",
@@ -49,20 +51,21 @@ func doClientConn(num int, broker string, resCh chan string) {
 		PingTimeout:    10 * time.Second,
 		ConnectTimeout: 10 * time.Second,
 		DefaultPublishHandler: func(client mqtt.Client, message mqtt.Message) {
-			if num == 1 {
+			if conf.printReceivedMsg && num == 0 {
 				fmt.Println(string(message.Payload()))
 			}
 		},
 		OnConnect: func(client mqtt.Client) {
-
 		},
 		OnConnectionLost: func(client mqtt.Client, err error) {
-
+			fmt.Printf("[client#%d]Connection lost\n", num)
 		},
 		OnReconnecting: func(client mqtt.Client, options *mqtt.ClientOptions) {
+			fmt.Printf("[client#%d]Reconnecting\n", num)
 
 		},
 		OnConnectAttempt: func(broker *url.URL, tlsCfg *tls.Config) *tls.Config {
+			fmt.Printf("[client#%d]Connect attempt\n", num)
 
 			return tlsCfg
 		},
